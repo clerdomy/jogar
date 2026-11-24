@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Jeux à deux</title>
+<script src="https://unpkg.com/peerjs@1/dist/peerjs.min.js"></script>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{margin:0;height:100%;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#f4f1e4;background:#0f4d33}
+body{background:radial-gradient(circle at 50% 30%,#1b7a50,#0b3d28);height:100dvh;overflow:hidden}
+.hidden{display:none!important}
+.screen{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px;text-align:center}
+h1{font-size:40px;margin:0 0 6px;letter-spacing:1px}
+button{font:inherit;font-weight:700;font-size:17px;color:#1b1b1b;background:#f6c945;border:0;border-radius:12px;padding:14px 22px;min-width:240px;box-shadow:0 3px 0 #b48a12}
+button:active{transform:translateY(2px);box-shadow:0 1px 0 #b48a12}
+button:disabled{opacity:.5}
+button.alt{background:#e9e4d0;box-shadow:0 3px 0 #a9a48f}
+input{font:inherit;font-size:26px;font-weight:700;text-align:center;letter-spacing:6px;text-transform:uppercase;width:240px;padding:12px;border-radius:12px;border:2px solid #f6c945;background:#0b3d28;color:#fff;user-select:text;-webkit-user-select:text}
+input::placeholder{letter-spacing:2px;font-size:16px;color:#8fb8a3}
+.or{opacity:.75;margin-top:6px}
+.small{font-size:14px;opacity:.8}
+#lobbyMsg{min-height:22px;margin:0;color:#ffe9a3}
+#codeShow{font-size:48px;font-weight:800;letter-spacing:8px;background:#0b3d28;border:2px dashed #f6c945;border-radius:14px;padding:10px 20px;user-select:text;-webkit-user-select:text}
+
+/* écran de jeu */
+#game{justify-content:flex-start;padding:8px}
+.view{flex:1;width:100%;min-height:0;display:flex;flex-direction:column;align-items:center;gap:6px}
+.info{font-size:13px;opacity:.9}
+.status{min-height:22px;font-size:15px;font-weight:600}
+
+/* dominos */
+#opp{display:flex;flex-wrap:wrap;justify-content:center;gap:3px;min-height:30px}
+.back{width:15px;height:28px;border-radius:4px;background:#f3efe0;border:2px solid #c9c2a6}
+#board{flex:1;width:100%;overflow-y:auto;display:flex;flex-wrap:wrap;align-items:center;align-content:center;justify-content:center;gap:4px;padding:8px;background:rgba(0,0,0,.18);border-radius:14px}
+#actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+#actions button{min-width:0;padding:10px 14px;font-size:15px}
+#hand{width:100%;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;padding:10px 4px 6px;max-height:42dvh;overflow-y:auto}
+.tile{--s:42px;display:inline-flex;flex:none;background:#fdfcf5;border-radius:calc(var(--s)*.18);box-shadow:0 2px 0 #b9b39c,0 3px 6px rgba(0,0,0,.35);transition:transform .12s,opacity .12s}
+.tile.v{flex-direction:column}
+.tile.sm{--s:22px}
+.half{width:var(--s);height:var(--s);display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:calc(var(--s)*.14)}
+.tile.v .half+.half{border-top:2px solid #333}
+.tile.h .half+.half{border-left:2px solid #333}
+.half i{border-radius:50%;margin:9%}
+.half i.p{background:#1b1b1b}
+#board .tile.end{box-shadow:0 0 0 2px #f6c945,0 3px 6px rgba(0,0,0,.35)}
+#hand.turn .tile:not(.ok){opacity:.4}
+#hand .tile.ok{transform:translateY(-6px)}
+#hand .tile.sel{transform:translateY(-12px);box-shadow:0 0 0 3px #f6c945,0 6px 10px rgba(0,0,0,.4)}
+
+/* morpion */
+#ttt{justify-content:center;gap:18px}
+#grid{width:min(86vw,340px);aspect-ratio:1;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:8px}
+.cell{display:flex;align-items:center;justify-content:center;font-size:62px;font-weight:800;line-height:1;background:rgba(0,0,0,.25);border-radius:14px;transition:transform .12s,background .12s}
+.cell.x{color:#f6c945}
+.cell.o{color:#7fd6ff}
+.cell.sel{transform:scale(1.08);box-shadow:0 0 0 3px #fff}
+.cell.target{background:rgba(255,255,255,.14)}
+.cell.win{background:rgba(246,201,69,.35)}
+
+/* fenêtre de résultat */
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:20px;z-index:10}
+.card{background:#145c3c;border:2px solid #f6c945;border-radius:18px;padding:22px;text-align:center;max-width:340px;width:100%;display:flex;flex-direction:column;align-items:center;gap:10px}
+.card h2{margin:0;font-size:26px}
+.card p{margin:0;font-size:15px}
+#ovTiles{display:flex;flex-wrap:wrap;gap:4px;justify-content:center}
+</style>
+</head>
+<body>
+
+<div id="lobby" class="screen">
+  <h1>Jeux à deux</h1>
+  <div>Créer une salle :</div>
+  <button id="btnDom">🁫 Dominos</button>
+  <button id="btnTtt">✕◯ Morpion (3 pions)</button>
+  <div class="or">ou rejoindre un ami</div>
+  <input id="codeInput" maxlength="5" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false">
+  <button id="btnJoin">Rejoindre</button>
+  <p id="lobbyMsg"></p>
+</div>
+
+<div id="waiting" class="screen hidden">
+  <p>Envoyez ce code à votre ami :</p>
+  <div id="codeShow"></div>
+  <button id="btnShare">Partager le code</button>
+  <p class="small">En attente de l'autre joueur…<br>Gardez cet écran ouvert.</p>
+</div>
+
+<div id="game" class="screen hidden">
+  <div id="dom" class="view">
+    <div id="opp"></div>
+    <div id="info" class="info"></div>
+    <div id="board"></div>
+    <div id="status" class="status"></div>
+    <div id="actions">
+      <button id="btnL" class="hidden"></button>
+      <button id="btnR" class="hidden"></button>
+      <button id="btnDraw" class="hidden">Piocher</button>
+    </div>
+    <div id="hand"></div>
+  </div>
+  <div id="ttt" class="view hidden">
+    <div id="tInfo" class="info"></div>
+    <div id="grid"></div>
+    <div id="tStatus" class="status"></div>
+  </div>
+</div>
+
+<div id="overlay" class="hidden">
+  <div class="card">
+    <h2 id="ovTitle"></h2>
+    <p id="ovText"></p>
+    <div id="ovTiles"></div>
+    <button id="ovBtn"></button>
+    <button id="ovBtn2" class="alt"></button>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const PREFIX = 'jeux-salle-';
+const ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+let peer = null, conn = null, isHost = false;
+let G = null;          // état complet (uniquement chez le créateur de la salle)
+let V = null;          // ce que ce joueur voit
+let wins = [0, 0];
+let selected = -1;
+let dead = false;
+let firstGame = 'domino';
+let tttStarter = 0;
+
+/* ---------- écrans ---------- */
+function show(id){ ['lobby','waiting','game'].forEach(s => $(s).classList.toggle('hidden', s !== id)); }
+function lobbyMsg(t){ $('lobbyMsg').textContent = t; }
+function setBusy(b){ ['btnDom','btnTtt','btnJoin'].forEach(id => $(id).disabled = b); }
+function overlay(title, text, tiles, btn, fn, btn2, fn2){
+  $('ovTitle').textContent = title;
+  $('ovText').textContent = text;
+  const box = $('ovTiles'); box.innerHTML = '';
+  (tiles || []).forEach(t => box.appendChild(tileEl(t, false, 'sm')));
+  $('ovBtn').textContent = btn; $('ovBtn').onclick = fn;
+  $('ovBtn2').classList.toggle('hidden', !btn2);
+  if (btn2){ $('ovBtn2').textContent = btn2; $('ovBtn2').onclick = fn2; }
+  $('overlay').classList.remove('hidden');
+}
+
+/* =====================================================
+   LOGIQUE (tourne seulement chez le créateur de la salle)
+   ===================================================== */
+function start(game){ if (game === 'ttt') newTtt(); else newDomino(); }
+
+function act(p, a){
+  if (!G) return;
+  if (G.over){
+    if (a.t === 'again') start(G.game);
+    else if (a.t === 'switch') start(G.game === 'ttt' ? 'domino' : 'ttt');
+    return;
+  }
+  if (p !== G.turn) return;
+  if (G.game === 'ttt') actTtt(p, a); else actDomino(p, a);
+}
+
+/* ---------- dominos ---------- */
+function fits(t, board){
+  if (!board.length) return { l:true, r:true };
+  const L = board[0][0], R = board[board.length-1][1];
+  return { l: t[0]===L || t[1]===L, r: t[0]===R || t[1]===R };
+}
+function canPlay(hand, board){ return hand.some(t => { const f = fits(t, board); return f.l || f.r; }); }
+function pips(hand){ return hand.reduce((s,t) => s + t[0] + t[1], 0); }
+
+function newDomino(){
+  const tiles = [];
+  for (let a=0; a<=6; a++) for (let b=a; b<=6; b++) tiles.push([a,b]);
+  for (let i=tiles.length-1; i>0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+  }
+  G = { game:'domino', board:[], hands:[tiles.slice(0,7), tiles.slice(7,14)], stock:tiles.slice(14), turn:0, over:null, passed:null };
+  let best = -1;                                   // le plus gros double commence
+  G.hands.forEach((h,p) => h.forEach(t => { if (t[0]===t[1] && t[0]>best){ best = t[0]; G.turn = p; } }));
+  sync();
+}
+
+function finish(winner, reason){
+  G.over = { winner, reason };
+  if (winner >= 0) wins[winner]++;
+}
+
+function settle(){
+  const p = G.turn;
+  if (canPlay(G.hands[p], G.board) || G.stock.length) return;
+  if (!canPlay(G.hands[1-p], G.board)){            // personne ne peut jouer : jeu bloqué
+    const a = pips(G.hands[0]), b = pips(G.hands[1]);
+    finish(a===b ? -1 : (a<b ? 0 : 1), 'bloque');
+    return;
+  }
+  G.passed = p; G.turn = 1-p;
+}
+
+function actDomino(p, a){
+  const hand = G.hands[p];
+  if (a.t === 'play'){
+    const t = hand[a.i];
+    if (!t) return;
+    const f = fits(t, G.board);
+    if (!G.board.length){
+      G.board.push(t);
+    } else if (a.side === 'l' && f.l){
+      const L = G.board[0][0];
+      G.board.unshift(t[1]===L ? t : [t[1], t[0]]);
+    } else if (a.side === 'r' && f.r){
+      const R = G.board[G.board.length-1][1];
+      G.board.push(t[0]===R ? t : [t[1], t[0]]);
+    } else return;
+    hand.splice(a.i, 1);
+    G.passed = null;
+    if (!hand.length){ finish(p, 'fini'); sync(); return; }
+    G.turn = 1-p;
+  } else if (a.t === 'draw'){
+    if (canPlay(hand, G.board) || !G.stock.length) return;
+    hand.push(G.stock.pop());
+    G.passed = null;
+  } else return;
+  settle();
+  sync();
+}
+
+/* ---------- morpion à 3 pions ---------- */
+const LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+function newTtt(){
+  G = { game:'ttt', cells:Array(9).fill(null), turn:tttStarter, over:null };
+  tttStarter = 1 - tttStarter;                     // on alterne celui qui commence
+  sync();
+}
+
+function actTtt(p, a){
+  const c = G.cells, n = c.filter(x => x === p).length;
+  if (a.t === 'place'){
+    if (n >= 3 || c[a.c] !== null) return;
+    c[a.c] = p;
+  } else if (a.t === 'move'){
+    if (n < 3 || c[a.from] !== p || c[a.to] !== null) return;
+    c[a.from] = null; c[a.to] = p;
+  } else return;
+  const line = LINES.find(l => l.every(i => c[i] === p));
+  if (line){ G.over = { winner:p, reason:'ligne', line }; wins[p]++; }
+  else G.turn = 1-p;
+  sync();
+}
+
+/* ---------- vue envoyée à chaque joueur ---------- */
+function view(p){
+  const o = 1-p;
+  const base = { game:G.game, me:p, myTurn: !G.over && G.turn === p, score:[wins[p], wins[o]] };
+  const res = G.over ? (G.over.winner < 0 ? 'draw' : (G.over.winner === p ? 'win' : 'lose')) : null;
+  if (G.game === 'ttt'){
+    return Object.assign(base, { cells:G.cells, over: G.over ? { res, line:G.over.line } : null });
+  }
+  return Object.assign(base, {
+    hand:G.hands[p], opp:G.hands[o].length, board:G.board, stock:G.stock.length,
+    passed: G.passed == null ? null : (G.passed === p ? 'me' : 'opp'),
+    over: G.over ? { res, reason:G.over.reason, oppHand:G.hands[o], myPips:pips(G.hands[p]), oppPips:pips(G.hands[o]) } : null
+  });
+}
+
+function sync(){
+  V = view(0); selected = -1; render();
+  if (conn && conn.open) conn.send({ t:'state', v:view(1) });
+}
+
+function send(a){
+  if (isHost) act(0, a);
+  else if (conn && conn.open) conn.send(a);
+}
+
+/* =====================================================
+   AFFICHAGE
+   ===================================================== */
+const PIPS = {0:[],1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+function halfEl(n, horiz){
+  const h = document.createElement('div'); h.className = 'half';
+  const on = (n===6 && horiz) ? [0,1,2,6,7,8] : PIPS[n];
+  for (let i=0; i<9; i++){
+    const d = document.createElement('i');
+    if (on.includes(i)) d.className = 'p';
+    h.appendChild(d);
+  }
+  return h;
+}
+function tileEl(t, horiz, cls){
+  const e = document.createElement('div');
+  e.className = 'tile ' + (horiz ? 'h' : 'v') + (cls ? ' '+cls : '');
+  e.append(halfEl(t[0], horiz), halfEl(t[1], horiz));
+  return e;
+}
+
+function render(){
+  if (!V || dead) return;
+  show('game');
+  const isTtt = V.game === 'ttt';
+  $('dom').classList.toggle('hidden', isTtt);
+  $('ttt').classList.toggle('hidden', !isTtt);
+  if (isTtt) renderTtt(); else renderDomino();
+
+  if (V.over){
+    const go = () => { if (V && V.over && !dead) showResult(); };
+    if (isTtt) setTimeout(go, 900); else go();     // au morpion, on laisse voir la ligne gagnante
+  } else {
+    $('overlay').classList.add('hidden');
+  }
+}
+
+function showResult(){
+  const o = V.over, isTtt = V.game === 'ttt';
+  const title = o.res === 'win' ? 'Vous avez gagné ! 🎉' : o.res === 'lose' ? 'Vous avez perdu 😕' : 'Égalité !';
+  let text, tiles = null;
+  if (isTtt){
+    text = o.res === 'win' ? 'Trois pions alignés !' : "L'adversaire a aligné trois pions.";
+  } else if (o.reason === 'fini'){
+    text = o.res === 'win' ? "Vous avez posé tous vos dominos ! Dominos restants de l'adversaire :" : "L'adversaire a posé tous ses dominos.";
+    tiles = o.oppHand;
+  } else {
+    text = `Jeu bloqué. Vos points : ${o.myPips} · Adversaire : ${o.oppPips}. Le plus petit total gagne. Dominos de l'adversaire :`;
+    tiles = o.oppHand;
+  }
+  overlay(title, text, tiles,
+    'Rejouer', () => send({ t:'again' }),
+    isTtt ? 'Jouer aux dominos' : 'Jouer au morpion', () => send({ t:'switch' }));
+}
+
+/* ---------- dominos ---------- */
+function renderDomino(){
+  const opp = $('opp'); opp.innerHTML = '';
+  for (let i=0; i<V.opp; i++){ const b = document.createElement('div'); b.className = 'back'; opp.appendChild(b); }
+  $('info').textContent = `Adversaire : ${V.opp} dominos · Pioche : ${V.stock} · Score : vous ${V.score[0]} – ${V.score[1]}`;
+
+  const board = $('board'); board.innerHTML = '';
+  V.board.forEach((t,i) => {
+    const el = tileEl(t, t[0]!==t[1], 'sm');
+    if (V.board.length > 1 && (i===0 || i===V.board.length-1)) el.classList.add('end');
+    board.appendChild(el);
+  });
+
+  const playable = canPlay(V.hand, V.board);
+  const hand = $('hand'); hand.innerHTML = '';
+  hand.classList.toggle('turn', V.myTurn);
+  V.hand.forEach((t,i) => {
+    const el = tileEl(t, false);
+    const f = fits(t, V.board);
+    if (V.myTurn && (f.l || f.r)){ el.classList.add('ok'); el.onclick = () => tapTile(i); }
+    if (i === selected) el.classList.add('sel');
+    hand.appendChild(el);
+  });
+
+  let s = V.passed === 'me' ? 'Vous avez passé votre tour. ' : V.passed === 'opp' ? "L'adversaire a passé son tour. " : '';
+  if (V.over) s = 'Fin de la partie';
+  else if (!V.myTurn) s += "Tour de l'adversaire…";
+  else if (selected >= 0) s = 'Quel côté ?';
+  else if (playable) s += 'À vous — touchez un domino';
+  else s += 'Aucun coup possible — piochez';
+  $('status').textContent = s;
+
+  const pick = V.myTurn && selected >= 0 && V.board.length;
+  $('btnL').classList.toggle('hidden', !pick);
+  $('btnR').classList.toggle('hidden', !pick);
+  if (pick){
+    $('btnL').textContent = '◀ Côté ' + V.board[0][0];
+    $('btnR').textContent = 'Côté ' + V.board[V.board.length-1][1] + ' ▶';
+  }
+  $('btnDraw').classList.toggle('hidden', !(V.myTurn && !playable && V.stock > 0));
+}
+
+function tapTile(i){
+  if (!V || !V.myTurn) return;
+  if (!V.board.length){ send({ t:'play', i, side:'r' }); return; }
+  const f = fits(V.hand[i], V.board);
+  const L = V.board[0][0], R = V.board[V.board.length-1][1];
+  if (f.l && f.r && L !== R){ selected = (selected === i ? -1 : i); render(); return; }
+  send({ t:'play', i, side: f.l ? 'l' : 'r' });
+}
+$('btnL').onclick = () => { if (selected >= 0) send({ t:'play', i:selected, side:'l' }); };
+$('btnR').onclick = () => { if (selected >= 0) send({ t:'play', i:selected, side:'r' }); };
+$('btnDraw').onclick = () => send({ t:'draw' });
+
+/* ---------- morpion ---------- */
+function renderTtt(){
+  const mark = p => p === 0 ? '✕' : '◯';
+  const mine = V.cells.filter(x => x === V.me).length;
+  $('tInfo').textContent = `Vous êtes ${mark(V.me)} · Score : vous ${V.score[0]} – ${V.score[1]}`;
+
+  const grid = $('grid'); grid.innerHTML = '';
+  V.cells.forEach((c,i) => {
+    const el = document.createElement('div');
+    el.className = 'cell';
+    if (c !== null){ el.textContent = mark(c); el.classList.add(c === 0 ? 'x' : 'o'); }
+    if (i === selected) el.classList.add('sel');
+    if (c === null && selected >= 0) el.classList.add('target');
+    if (V.over && V.over.line && V.over.line.includes(i)) el.classList.add('win');
+    el.onclick = () => tapCell(i);
+    grid.appendChild(el);
+  });
+
+  let s;
+  if (V.over) s = 'Fin de la partie';
+  else if (!V.myTurn) s = "Tour de l'adversaire…";
+  else if (mine < 3) s = `À vous — posez un pion (${mine}/3)`;
+  else if (selected < 0) s = 'À vous — choisissez un pion à déplacer';
+  else s = "Choisissez la case d'arrivée";
+  $('tStatus').textContent = s;
+}
+
+function tapCell(i){
+  if (!V || !V.myTurn) return;
+  const c = V.cells, mine = c.filter(x => x === V.me).length;
+  if (mine < 3){ if (c[i] === null) send({ t:'place', c:i }); return; }
+  if (c[i] === V.me){ selected = (selected === i ? -1 : i); render(); }
+  else if (c[i] === null && selected >= 0) send({ t:'move', from:selected, to:i });
+}
+
+/* =====================================================
+   CONNEXION ENTRE LES DEUX TÉLÉPHONES
+   ===================================================== */
+function mkCode(){ let s=''; for (let i=0;i<5;i++) s += ABC[Math.floor(Math.random()*ABC.length)]; return s; }
+
+function lost(){
+  if (dead) return;
+  dead = true;
+  overlay('Connexion perdue', "L'autre joueur est parti ou la connexion a été coupée.", null, "Retour à l'accueil", () => location.reload());
+}
+function netError(e){
+  if (V) return;                                   // déjà en jeu : la connexion directe reste active
+  lobbyMsg('Erreur de connexion (' + (e.type || 'inconnue') + '). Réessayez.');
+  setBusy(false); show('lobby');
+}
+function checkLib(){
+  if (typeof Peer === 'undefined'){ lobbyMsg("Pas d'internet : impossible de charger la connexion."); return false; }
+  return true;
+}
+
+function createRoom(game){
+  if (!checkLib()) return;
+  isHost = true; firstGame = game; setBusy(true); lobbyMsg('Création de la salle…');
+  const code = mkCode();
+  peer = new Peer(PREFIX + code);
+  peer.on('open', () => { $('codeShow').textContent = code; show('waiting'); });
+  peer.on('connection', c => {
+    if (conn && conn.open){ c.on('open', () => c.close()); return; }   // salle pleine
+    conn = c;
+    c.on('open', () => { wins = [0,0]; start(firstGame); });
+    c.on('data', d => {
+      if (!d || typeof d !== 'object') return;
+      if (d.t === 'hello'){ if (G) sync(); return; }
+      act(1, d);
+    });
+    c.on('close', lost);
+  });
+  peer.on('disconnected', () => { if (!peer.destroyed) peer.reconnect(); });
+  peer.on('error', e => {
+    if (e.type === 'unavailable-id'){ peer.destroy(); createRoom(game); }   // code déjà pris : on en génère un autre
+    else netError(e);
+  });
+}
+
+function joinRoom(raw){
+  if (!checkLib()) return;
+  const code = (raw || '').trim().toUpperCase();
+  if (code.length !== 5){ lobbyMsg('Entrez le code à 5 caractères.'); return; }
+  isHost = false; setBusy(true); lobbyMsg('Connexion…');
+  peer = new Peer();
+  peer.on('open', () => {
+    conn = peer.connect(PREFIX + code, { reliable:true });
+    conn.on('open', () => { lobbyMsg('Connecté ! Démarrage…'); conn.send({ t:'hello' }); });
+    conn.on('data', d => { if (d && d.t === 'state'){ V = d.v; selected = -1; render(); } });
+    conn.on('close', lost);
+  });
+  peer.on('error', e => {
+    if (e.type === 'peer-unavailable'){
+      lobbyMsg('Salle introuvable. Vérifiez le code.');
+      setBusy(false); peer.destroy();
+    } else netError(e);
+  });
+}
+
+$('btnDom').onclick = () => createRoom('domino');
+$('btnTtt').onclick = () => createRoom('ttt');
+$('btnJoin').onclick = () => joinRoom($('codeInput').value);
+$('codeInput').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom($('codeInput').value); });
+
+$('btnShare').onclick = () => {
+  const code = $('codeShow').textContent;
+  const web = location.protocol.startsWith('http');
+  const url = web ? location.origin + location.pathname + '?salle=' + code : '';
+  const text = 'Viens jouer avec moi ! Code de la salle : ' + code + (url ? '\n' + url : '');
+  if (navigator.share) navigator.share({ text }).catch(() => {});
+  else if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => { $('btnShare').textContent = 'Copié !'; });
+};
+
+// un lien avec ?salle=CODE rejoint directement la salle
+const q = new URLSearchParams(location.search).get('salle');
+if (q){ $('codeInput').value = q.toUpperCase(); joinRoom(q); }
+</script>
+</body>
+</html>
