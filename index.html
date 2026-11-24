@@ -3,117 +3,195 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#F4F6F9">
 <title>Jeux à deux</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/peerjs@1/dist/peerjs.min.js"></script>
 <style>
+:root{
+  --bg:#F4F6F9; --surface:#FFFFFF; --table:#E6EBF2;
+  --ink:#16202E; --muted:#667385; --line:#D5DCE6;
+  --go:#0C8F63; --go-soft:#DDF3EA;
+  --x:#0C8F63; --o:#4250D6;
+}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
-html,body{margin:0;height:100%;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#f4f1e4;background:#0f4d33}
-body{background:radial-gradient(circle at 50% 30%,#1b7a50,#0b3d28);height:100dvh;overflow:hidden}
+html,body{margin:0;height:100%}
+body{font-family:"Outfit",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.4;color:var(--ink);background:var(--bg);height:100dvh;overflow:hidden}
 .hidden{display:none!important}
-.screen{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px;text-align:center}
-h1{font-size:40px;margin:0 0 6px;letter-spacing:1px}
-button{font:inherit;font-weight:700;font-size:17px;color:#1b1b1b;background:#f6c945;border:0;border-radius:12px;padding:14px 22px;min-width:240px;box-shadow:0 3px 0 #b48a12}
-button:active{transform:translateY(2px);box-shadow:0 1px 0 #b48a12}
-button:disabled{opacity:.5}
-button.alt{background:#e9e4d0;box-shadow:0 3px 0 #a9a48f}
-input{font:inherit;font-size:26px;font-weight:700;text-align:center;letter-spacing:6px;text-transform:uppercase;width:240px;padding:12px;border-radius:12px;border:2px solid #f6c945;background:#0b3d28;color:#fff;user-select:text;-webkit-user-select:text}
-input::placeholder{letter-spacing:2px;font-size:16px;color:#8fb8a3}
-.or{opacity:.75;margin-top:6px}
-.small{font-size:14px;opacity:.8}
-#lobbyMsg{min-height:22px;margin:0;color:#ffe9a3}
-#codeShow{font-size:48px;font-weight:800;letter-spacing:8px;background:#0b3d28;border:2px dashed #f6c945;border-radius:14px;padding:10px 20px;user-select:text;-webkit-user-select:text}
+.screen{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 20px}
+.wrap{width:100%;max-width:380px;display:flex;flex-direction:column;gap:12px}
+
+h1{font-size:34px;font-weight:700;line-height:1.1;letter-spacing:-.02em;margin:0}
+h2{font-size:15px;font-weight:500;color:var(--muted);margin:14px 0 0}
+p{margin:0}
+.lead{color:var(--muted);font-size:17px;margin-bottom:6px}
+.muted{color:var(--muted)}
+
+button{font:inherit;font-weight:600;font-size:16px;border-radius:12px;padding:13px 18px;border:1px solid transparent;cursor:pointer;transition:transform .08s}
+button:active{transform:scale(.98)}
+button:disabled{opacity:.45}
+button:focus-visible,input:focus-visible{outline:2px solid var(--go);outline-offset:2px}
+.primary{background:var(--ink);color:#fff}
+.ghost{background:var(--surface);color:var(--ink);border-color:var(--line)}
+
+/* accueil */
+.choice{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;color:var(--ink)}
+.choice .ic{width:52px;display:flex;justify-content:center;align-items:center;gap:6px;flex:none}
+.choice b{display:block;font-size:17px;font-weight:600}
+.choice span.d{display:block;font-size:14px;font-weight:400;color:var(--muted)}
+.join{display:flex;gap:8px}
+input{font:inherit;font-size:20px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;text-align:center;flex:1;min-width:0;padding:11px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);user-select:text;-webkit-user-select:text}
+input::placeholder{color:#A9B3C1;font-weight:500}
+#lobbyMsg{min-height:21px;color:var(--muted)}
+
+/* attente */
+#codeShow{font-size:40px;font-weight:700;letter-spacing:.2em;text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 0 18px .2em;user-select:text;-webkit-user-select:text}
+.waitline{display:flex;align-items:center;gap:10px;color:var(--muted);margin-top:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--go);animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
 
 /* écran de jeu */
-#game{justify-content:flex-start;padding:8px}
-.view{flex:1;width:100%;min-height:0;display:flex;flex-direction:column;align-items:center;gap:6px}
-.info{font-size:13px;opacity:.9}
-.status{min-height:22px;font-size:15px;font-weight:600}
+#game{justify-content:flex-start;padding:12px;gap:10px}
+#bar{width:100%;display:flex;justify-content:space-between;align-items:center}
+.side{display:flex;align-items:center;gap:8px;padding:7px 13px;border-radius:99px;background:var(--surface);border:1px solid var(--line);font-size:14px;color:var(--muted)}
+.side b{font-size:17px;font-weight:600;color:var(--ink)}
+.side.on{background:var(--go-soft);border-color:var(--go);color:var(--go)}
+.side.on b{color:var(--go)}
+.view{flex:1;width:100%;min-height:0;display:flex;flex-direction:column;align-items:center;gap:10px}
+.status{min-height:21px;font-weight:500;text-align:center}
+.status.wait{color:var(--muted)}
 
 /* dominos */
-#opp{display:flex;flex-wrap:wrap;justify-content:center;gap:3px;min-height:30px}
-.back{width:15px;height:28px;border-radius:4px;background:#f3efe0;border:2px solid #c9c2a6}
-#board{flex:1;width:100%;overflow-y:auto;display:flex;flex-wrap:wrap;align-items:center;align-content:center;justify-content:center;gap:4px;padding:8px;background:rgba(0,0,0,.18);border-radius:14px}
+#oppRow{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px}
+#opp{display:flex;flex-wrap:wrap;align-items:center;gap:3px;min-height:22px}
+#opp .n{margin-left:6px;font-size:14px;color:var(--muted)}
+.back{width:12px;height:22px;border-radius:3px;background:var(--surface);border:1px solid #C3CCD8}
+.chip{flex:none;font-size:14px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:4px 12px}
+#board{flex:1;width:100%;overflow-y:auto;display:flex;flex-wrap:wrap;align-items:center;align-content:center;justify-content:center;gap:4px;padding:10px;background:var(--table);border-radius:18px}
 #actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
-#actions button{min-width:0;padding:10px 14px;font-size:15px}
-#hand{width:100%;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;padding:10px 4px 6px;max-height:42dvh;overflow-y:auto}
-.tile{--s:42px;display:inline-flex;flex:none;background:#fdfcf5;border-radius:calc(var(--s)*.18);box-shadow:0 2px 0 #b9b39c,0 3px 6px rgba(0,0,0,.35);transition:transform .12s,opacity .12s}
+#actions button{padding:10px 16px;font-size:15px}
+#hand{width:100%;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;padding:10px 2px 4px;max-height:42dvh;overflow-y:auto}
+
+.tile{--s:42px;display:inline-flex;flex:none;background:#fff;border:1px solid #C3CCD8;border-radius:calc(var(--s)*.2);box-shadow:0 1px 2px rgba(22,32,46,.14);transition:transform .12s,opacity .12s,box-shadow .12s}
 .tile.v{flex-direction:column}
 .tile.sm{--s:22px}
-.half{width:var(--s);height:var(--s);display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:calc(var(--s)*.14)}
-.tile.v .half+.half{border-top:2px solid #333}
-.tile.h .half+.half{border-left:2px solid #333}
-.half i{border-radius:50%;margin:9%}
-.half i.p{background:#1b1b1b}
-#board .tile.end{box-shadow:0 0 0 2px #f6c945,0 3px 6px rgba(0,0,0,.35)}
-#hand.turn .tile:not(.ok){opacity:.4}
-#hand .tile.ok{transform:translateY(-6px)}
-#hand .tile.sel{transform:translateY(-12px);box-shadow:0 0 0 3px #f6c945,0 6px 10px rgba(0,0,0,.4)}
+.half{width:var(--s);height:var(--s);display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:calc(var(--s)*.15)}
+.tile.v .half+.half{border-top:1.5px solid #B8C2CF}
+.tile.h .half+.half{border-left:1.5px solid #B8C2CF}
+.half i{border-radius:50%;margin:10%}
+.half i.p{background:var(--ink)}
+#board .tile.end{box-shadow:0 0 0 2px var(--go)}
+#hand.turn .tile:not(.ok){opacity:.35}
+#hand .tile.ok{transform:translateY(-6px);box-shadow:0 4px 10px rgba(22,32,46,.16)}
+#hand .tile.sel{transform:translateY(-12px);box-shadow:0 0 0 2px var(--go),0 6px 14px rgba(22,32,46,.18)}
 
 /* morpion */
-#ttt{justify-content:center;gap:18px}
-#grid{width:min(86vw,340px);aspect-ratio:1;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:8px}
-.cell{display:flex;align-items:center;justify-content:center;font-size:62px;font-weight:800;line-height:1;background:rgba(0,0,0,.25);border-radius:14px;transition:transform .12s,background .12s}
-.cell.x{color:#f6c945}
-.cell.o{color:#7fd6ff}
-.cell.sel{transform:scale(1.08);box-shadow:0 0 0 3px #fff}
-.cell.target{background:rgba(255,255,255,.14)}
-.cell.win{background:rgba(246,201,69,.35)}
+#ttt{justify-content:center;gap:20px}
+#grid{width:min(88vw,340px);aspect-ratio:1;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:8px}
+.cell{position:relative;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line);border-radius:18px;transition:transform .12s,background .15s}
+.cell.x::before,.cell.x::after{content:"";position:absolute;width:54%;height:9%;border-radius:99px;background:var(--x)}
+.cell.x::before{transform:rotate(45deg)}
+.cell.x::after{transform:rotate(-45deg)}
+.cell.o::before{content:"";width:48%;height:48%;border-radius:50%;border:8px solid var(--o)}
+.cell.sel{transform:scale(1.06);box-shadow:0 0 0 2px var(--ink)}
+.cell.target{background:var(--go-soft);border:1px dashed var(--go)}
+.cell.win{background:var(--ink);border-color:var(--ink)}
+.cell.win.x::before,.cell.win.x::after{background:#fff}
+.cell.win.o::before{border-color:#fff}
 
-/* fenêtre de résultat */
-#overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:20px;z-index:10}
-.card{background:#145c3c;border:2px solid #f6c945;border-radius:18px;padding:22px;text-align:center;max-width:340px;width:100%;display:flex;flex-direction:column;align-items:center;gap:10px}
-.card h2{margin:0;font-size:26px}
-.card p{margin:0;font-size:15px}
-#ovTiles{display:flex;flex-wrap:wrap;gap:4px;justify-content:center}
+/* petits symboles X / O */
+.mk{display:inline-block;position:relative;width:14px;height:14px;flex:none}
+.mk:not(.x):not(.o){display:none}
+.mk.lg{width:20px;height:20px}
+.mk.x::before,.mk.x::after{content:"";position:absolute;left:0;top:50%;width:100%;height:3px;margin-top:-1.5px;border-radius:9px;background:var(--x)}
+.mk.x::before{transform:rotate(45deg)}
+.mk.x::after{transform:rotate(-45deg)}
+.mk.o{border:3px solid var(--o);border-radius:50%}
+
+/* résultat */
+#overlay{position:fixed;inset:0;background:rgba(22,32,46,.45);display:flex;align-items:flex-end;justify-content:center;z-index:10}
+.sheet{background:var(--surface);width:100%;max-width:480px;border-radius:24px 24px 0 0;padding:24px 20px calc(20px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px;animation:up .2s ease-out}
+@keyframes up{from{transform:translateY(24px);opacity:0}}
+.sheet h3{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}
+.sheet p{color:var(--muted)}
+#ovTiles{display:flex;flex-wrap:wrap;gap:4px}
+#ovTiles:empty{display:none}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
 
 <div id="lobby" class="screen">
-  <h1>Jeux à deux</h1>
-  <div>Créer une salle :</div>
-  <button id="btnDom">🁫 Dominos</button>
-  <button id="btnTtt">✕◯ Morpion (3 pions)</button>
-  <div class="or">ou rejoindre un ami</div>
-  <input id="codeInput" maxlength="5" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false">
-  <button id="btnJoin">Rejoindre</button>
-  <p id="lobbyMsg"></p>
+  <div class="wrap">
+    <h1>Jeux à deux</h1>
+    <p class="lead">Deux téléphones, une partie.</p>
+
+    <h2>Créer une salle</h2>
+    <button id="btnDom" class="choice">
+      <span class="ic" id="icDom"></span>
+      <span><b>Dominos</b><span class="d">28 dominos, 7 chacun, une pioche</span></span>
+    </button>
+    <button id="btnTtt" class="choice">
+      <span class="ic"><span class="mk lg x"></span><span class="mk lg o"></span></span>
+      <span><b>Morpion</b><span class="d">3 pions chacun, puis on les déplace</span></span>
+    </button>
+
+    <h2>Rejoindre une salle</h2>
+    <div class="join">
+      <input id="codeInput" maxlength="5" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Code de la salle">
+      <button id="btnJoin" class="primary">Rejoindre</button>
+    </div>
+    <p id="lobbyMsg"></p>
+  </div>
 </div>
 
 <div id="waiting" class="screen hidden">
-  <p>Envoyez ce code à votre ami :</p>
-  <div id="codeShow"></div>
-  <button id="btnShare">Partager le code</button>
-  <p class="small">En attente de l'autre joueur…<br>Gardez cet écran ouvert.</p>
+  <div class="wrap">
+    <h1>Votre salle</h1>
+    <p class="lead">Envoyez ce code à votre ami.</p>
+    <div id="codeShow"></div>
+    <button id="btnShare" class="primary">Partager le code</button>
+    <div class="waitline"><span class="dot"></span><span>En attente de l'autre joueur. Gardez cet écran ouvert.</span></div>
+  </div>
 </div>
 
 <div id="game" class="screen hidden">
+  <div id="bar">
+    <div class="side" id="sMe"><span class="mk" id="mkMe"></span><span>Vous</span><b id="scMe">0</b></div>
+    <div class="side" id="sOp"><b id="scOp">0</b><span>Adversaire</span><span class="mk" id="mkOp"></span></div>
+  </div>
+
   <div id="dom" class="view">
-    <div id="opp"></div>
-    <div id="info" class="info"></div>
+    <div id="oppRow">
+      <div id="opp"></div>
+      <div class="chip" id="stock"></div>
+    </div>
     <div id="board"></div>
     <div id="status" class="status"></div>
     <div id="actions">
-      <button id="btnL" class="hidden"></button>
-      <button id="btnR" class="hidden"></button>
-      <button id="btnDraw" class="hidden">Piocher</button>
+      <button id="btnL" class="ghost hidden"></button>
+      <button id="btnR" class="ghost hidden"></button>
+      <button id="btnDraw" class="primary hidden">Piocher</button>
     </div>
     <div id="hand"></div>
   </div>
+
   <div id="ttt" class="view hidden">
-    <div id="tInfo" class="info"></div>
     <div id="grid"></div>
     <div id="tStatus" class="status"></div>
   </div>
 </div>
 
 <div id="overlay" class="hidden">
-  <div class="card">
-    <h2 id="ovTitle"></h2>
+  <div class="sheet">
+    <h3 id="ovTitle"></h3>
     <p id="ovText"></p>
     <div id="ovTiles"></div>
-    <button id="ovBtn"></button>
-    <button id="ovBtn2" class="alt"></button>
+    <button id="ovBtn" class="primary"></button>
+    <button id="ovBtn2" class="ghost"></button>
   </div>
 </div>
 
@@ -297,6 +375,23 @@ function tileEl(t, horiz, cls){
   e.append(halfEl(t[0], horiz), halfEl(t[1], horiz));
   return e;
 }
+$('icDom').appendChild(tileEl([5,3], true, 'sm'));   // icône de l'accueil
+
+function setStatus(id, text){
+  const el = $(id);
+  el.textContent = text;
+  el.classList.toggle('wait', !V.myTurn);
+}
+
+function updateBar(){
+  const isTtt = V.game === 'ttt';
+  $('scMe').textContent = V.score[0];
+  $('scOp').textContent = V.score[1];
+  $('sMe').classList.toggle('on', V.myTurn);
+  $('sOp').classList.toggle('on', !V.myTurn && !V.over);
+  $('mkMe').className = 'mk' + (isTtt ? (V.me === 0 ? ' x' : ' o') : '');
+  $('mkOp').className = 'mk' + (isTtt ? (V.me === 0 ? ' o' : ' x') : '');
+}
 
 function render(){
   if (!V || dead) return;
@@ -304,11 +399,12 @@ function render(){
   const isTtt = V.game === 'ttt';
   $('dom').classList.toggle('hidden', isTtt);
   $('ttt').classList.toggle('hidden', !isTtt);
+  updateBar();
   if (isTtt) renderTtt(); else renderDomino();
 
   if (V.over){
     const go = () => { if (V && V.over && !dead) showResult(); };
-    if (isTtt) setTimeout(go, 900); else go();     // au morpion, on laisse voir la ligne gagnante
+    if (isTtt) setTimeout(go, 600); else go();     // au morpion, on laisse voir la ligne gagnante
   } else {
     $('overlay').classList.add('hidden');
   }
@@ -316,15 +412,15 @@ function render(){
 
 function showResult(){
   const o = V.over, isTtt = V.game === 'ttt';
-  const title = o.res === 'win' ? 'Vous avez gagné ! 🎉' : o.res === 'lose' ? 'Vous avez perdu 😕' : 'Égalité !';
+  const title = o.res === 'win' ? 'Vous avez gagné' : o.res === 'lose' ? 'Vous avez perdu' : 'Égalité';
   let text, tiles = null;
   if (isTtt){
-    text = o.res === 'win' ? 'Trois pions alignés !' : "L'adversaire a aligné trois pions.";
+    text = o.res === 'win' ? 'Trois pions alignés.' : "L'adversaire a aligné trois pions.";
   } else if (o.reason === 'fini'){
-    text = o.res === 'win' ? "Vous avez posé tous vos dominos ! Dominos restants de l'adversaire :" : "L'adversaire a posé tous ses dominos.";
-    tiles = o.oppHand;
+    text = o.res === 'win' ? "Vous avez posé tous vos dominos. Il restait à l'adversaire :" : "L'adversaire a posé tous ses dominos.";
+    tiles = o.res === 'win' ? o.oppHand : null;
   } else {
-    text = `Jeu bloqué. Vos points : ${o.myPips} · Adversaire : ${o.oppPips}. Le plus petit total gagne. Dominos de l'adversaire :`;
+    text = `Jeu bloqué. Vous avez ${o.myPips} points, l'adversaire ${o.oppPips}. Le plus petit total gagne. Dominos de l'adversaire :`;
     tiles = o.oppHand;
   }
   overlay(title, text, tiles,
@@ -336,7 +432,8 @@ function showResult(){
 function renderDomino(){
   const opp = $('opp'); opp.innerHTML = '';
   for (let i=0; i<V.opp; i++){ const b = document.createElement('div'); b.className = 'back'; opp.appendChild(b); }
-  $('info').textContent = `Adversaire : ${V.opp} dominos · Pioche : ${V.stock} · Score : vous ${V.score[0]} – ${V.score[1]}`;
+  const n = document.createElement('span'); n.className = 'n'; n.textContent = V.opp; opp.appendChild(n);
+  $('stock').textContent = 'Pioche ' + V.stock;
 
   const board = $('board'); board.innerHTML = '';
   V.board.forEach((t,i) => {
@@ -357,19 +454,19 @@ function renderDomino(){
   });
 
   let s = V.passed === 'me' ? 'Vous avez passé votre tour. ' : V.passed === 'opp' ? "L'adversaire a passé son tour. " : '';
-  if (V.over) s = 'Fin de la partie';
-  else if (!V.myTurn) s += "Tour de l'adversaire…";
-  else if (selected >= 0) s = 'Quel côté ?';
-  else if (playable) s += 'À vous — touchez un domino';
-  else s += 'Aucun coup possible — piochez';
-  $('status').textContent = s;
+  if (V.over) s = 'Partie terminée';
+  else if (!V.myTurn) s += "Tour de l'adversaire";
+  else if (selected >= 0) s = 'De quel côté ?';
+  else if (playable) s += 'À vous : touchez un domino';
+  else s += 'Aucun coup possible, piochez';
+  setStatus('status', s);
 
   const pick = V.myTurn && selected >= 0 && V.board.length;
   $('btnL').classList.toggle('hidden', !pick);
   $('btnR').classList.toggle('hidden', !pick);
   if (pick){
-    $('btnL').textContent = '◀ Côté ' + V.board[0][0];
-    $('btnR').textContent = 'Côté ' + V.board[V.board.length-1][1] + ' ▶';
+    $('btnL').textContent = 'Côté gauche (' + V.board[0][0] + ')';
+    $('btnR').textContent = 'Côté droit (' + V.board[V.board.length-1][1] + ')';
   }
   $('btnDraw').classList.toggle('hidden', !(V.myTurn && !playable && V.stock > 0));
 }
@@ -388,15 +485,12 @@ $('btnDraw').onclick = () => send({ t:'draw' });
 
 /* ---------- morpion ---------- */
 function renderTtt(){
-  const mark = p => p === 0 ? '✕' : '◯';
   const mine = V.cells.filter(x => x === V.me).length;
-  $('tInfo').textContent = `Vous êtes ${mark(V.me)} · Score : vous ${V.score[0]} – ${V.score[1]}`;
-
   const grid = $('grid'); grid.innerHTML = '';
   V.cells.forEach((c,i) => {
     const el = document.createElement('div');
     el.className = 'cell';
-    if (c !== null){ el.textContent = mark(c); el.classList.add(c === 0 ? 'x' : 'o'); }
+    if (c !== null) el.classList.add(c === 0 ? 'x' : 'o');
     if (i === selected) el.classList.add('sel');
     if (c === null && selected >= 0) el.classList.add('target');
     if (V.over && V.over.line && V.over.line.includes(i)) el.classList.add('win');
@@ -405,12 +499,12 @@ function renderTtt(){
   });
 
   let s;
-  if (V.over) s = 'Fin de la partie';
-  else if (!V.myTurn) s = "Tour de l'adversaire…";
-  else if (mine < 3) s = `À vous — posez un pion (${mine}/3)`;
-  else if (selected < 0) s = 'À vous — choisissez un pion à déplacer';
+  if (V.over) s = 'Partie terminée';
+  else if (!V.myTurn) s = "Tour de l'adversaire";
+  else if (mine < 3) s = `À vous : posez un pion (${mine}/3)`;
+  else if (selected < 0) s = 'À vous : choisissez un pion à déplacer';
   else s = "Choisissez la case d'arrivée";
-  $('tStatus').textContent = s;
+  setStatus('tStatus', s);
 }
 
 function tapCell(i){
@@ -473,7 +567,7 @@ function joinRoom(raw){
   peer = new Peer();
   peer.on('open', () => {
     conn = peer.connect(PREFIX + code, { reliable:true });
-    conn.on('open', () => { lobbyMsg('Connecté ! Démarrage…'); conn.send({ t:'hello' }); });
+    conn.on('open', () => { lobbyMsg('Connecté, la partie démarre…'); conn.send({ t:'hello' }); });
     conn.on('data', d => { if (d && d.t === 'state'){ V = d.v; selected = -1; render(); } });
     conn.on('close', lost);
   });
@@ -496,7 +590,7 @@ $('btnShare').onclick = () => {
   const url = web ? location.origin + location.pathname + '?salle=' + code : '';
   const text = 'Viens jouer avec moi ! Code de la salle : ' + code + (url ? '\n' + url : '');
   if (navigator.share) navigator.share({ text }).catch(() => {});
-  else if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => { $('btnShare').textContent = 'Copié !'; });
+  else if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => { $('btnShare').textContent = 'Code copié'; });
 };
 
 // un lien avec ?salle=CODE rejoint directement la salle
